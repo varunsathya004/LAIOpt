@@ -18,7 +18,7 @@ from laiopt.backend.adapters.csv_loader import load_blocks_csv, load_nets_csv
 from laiopt.backend.core.baseline import baseline_place
 from laiopt.backend.core.sa_engine import simulated_annealing
 from laiopt.backend.core.cost import total_cost
-from laiopt.backend.frontend.visualization import plot_placement
+from laiopt.frontend.visualization import plot_placement
 from laiopt.backend.core.models import Die
 
 
