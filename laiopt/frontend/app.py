@@ -91,6 +91,20 @@ st.set_page_config(layout="wide", page_title="LAIOpt")
 st.title("LAIOpt — Explainable AI-Assisted Floorplanning")
 st.caption("Professional-grade UI with strict backend guarantees")
 
+with st.expander("How does the optimization work?", expanded=False):
+    st.markdown("""
+    **Baseline Placement:** A deterministic, legal initial placement generated using a simple row-wise strategy. 
+    This serves as a reference point for comparison and ensures all blocks are placed without overlaps or boundary violations.
+    
+    **Simulated Annealing Exploration:** The optimizer explores alternative arrangements by randomly selecting between 
+    two move types: relocating a single block or swapping two blocks. Each move is evaluated against the cost function, 
+    and moves are accepted probabilistically based on temperature and cost improvement.
+    
+    **Legal Moves and Best-Solution Tracking:** All proposed moves are validated to ensure no overlaps or boundary violations. 
+    The algorithm tracks both the current state and the best solution seen, ensuring the final result is the optimal 
+    placement discovered during the optimization process.
+    """)
+
 st.sidebar.header("Die Parameters")
 die_width = st.sidebar.number_input("Die Width", min_value=10.0, value=100.0)
 die_height = st.sidebar.number_input("Die Height", min_value=10.0, value=100.0)
@@ -163,6 +177,11 @@ if run_button:
         st.pyplot(plot_placement(optimized, blocks, die, "Optimized"))
 
     st.subheader("Metrics")
+    st.caption("ℹ️ Total cost = Wirelength + Thermal spreading penalty")
+    
     st.metric("Baseline Cost", f"{baseline_cost:.2f}")
     st.metric("Optimized Cost", f"{opt_cost:.2f}")
     st.metric("Improvement", f"{baseline_cost - opt_cost:.2f}")
+    
+    if abs(opt_cost - baseline_cost) < 1e-6:
+        st.info("Baseline is already locally optimal under the current cost model.")
