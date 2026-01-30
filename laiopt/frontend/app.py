@@ -5,16 +5,19 @@ LAIOpt Frontend — AI-Assisted Floorplanning
 
 import io
 import sys
-import sys
-from zipfile import Path
+
+from pathlib import Path
+
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import time
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+
 
 from laiopt.backend.adapters.csv_loader import load_blocks_csv, load_nets_csv
 from laiopt.backend.core.baseline import baseline_place
