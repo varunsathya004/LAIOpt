@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: laiopt
+Version: 1.0.0
+Summary: LAIOpt - AI-Assisted Chip Layout Optimizer
+Author: LAIOpt Team
+Requires-Python: >=3.9
+Requires-Dist: streamlit>=1.28.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: matplotlib>=3.7.0
+Requires-Dist: numpy>=1.24.0
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

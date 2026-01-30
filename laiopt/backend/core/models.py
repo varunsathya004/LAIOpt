@@ -54,7 +54,7 @@ class Net:
     name: str
     blocks: List[str]
     weight: float
-
+    halo: float = 0.0 #default
     def __post_init__(self):
         if not self.blocks or not isinstance(self.blocks, list):
             raise ValueError("Net must connect at least one block.")

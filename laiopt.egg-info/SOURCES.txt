@@ -1,0 +1,8 @@
+README.md
+setup.py
+laiopt.egg-info/PKG-INFO
+laiopt.egg-info/SOURCES.txt
+laiopt.egg-info/dependency_links.txt
+laiopt.egg-info/entry_points.txt
+laiopt.egg-info/requires.txt
+laiopt.egg-info/top_level.txt

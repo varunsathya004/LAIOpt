@@ -1,0 +1,23 @@
+[Unit]
+Description=LAIOpt - AI-Assisted Chip Layout Optimizer
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/LAIOpt
+Environment="PATH=/opt/LAIOpt/venv/bin"
+ExecStart=/opt/LAIOpt/venv/bin/streamlit run laiopt/frontend/app.py --server.port=8501 --server.address=0.0.0.0
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/LAIOpt/laiopt/data
+
+[Install]
+WantedBy=multi-user.target

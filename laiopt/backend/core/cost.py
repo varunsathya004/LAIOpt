@@ -1,5 +1,6 @@
 """
 Cost functions for placement evaluation.
+OPTIMIZED: Faster thermal penalty computation with distance cutoff.
 TUNED: Rebalanced to allow Wire Attraction to overcome Thermal Repulsion.
 """
 
@@ -9,17 +10,21 @@ from laiopt.backend.core.models import Block, Net, Die
 
 # --- Optimization Weights & Constants ---
 OVERLAP_WEIGHT = 1e4           
-BOUNDARY_PENALTY = 1e9         
-
+BOUNDARY_PENALTY = 1e4         
+THERMAL_PENALTY_WEIGHT = 1.0
 # --- REBALANCED PHYSICS ---
-# Old: 50.0 -> New: 5.0 (Make heat penalty less scary)
-THERMAL_PENALTY_WEIGHT = 5.0  
 
-# Old: 500.0 -> New: 100.0 (Heat decays faster, allowing closer neighbors)
 THERMAL_SPREAD_K = 100.0       
-
-# Threshold
 MAX_SAFE_TEMP = 100.0          
+
+# --- CENTER PENALTY ---
+CENTER_PENALTY_WEIGHT = 2500.0 
+
+# --- THERMAL OPTIMIZATION ---
+# Pre-compute thermal decay threshold
+# Beyond this distance, thermal contribution is negligible (< 0.01% of power)
+# exp(-9.21) ≈ 0.0001, so we use sqrt(K * 9.21) as cutoff
+THERMAL_CUTOFF_DIST = math.sqrt(THERMAL_SPREAD_K * 9.21)  # ≈ 30.35 units
 
 Placement = Dict[str, Tuple[float, float]]
 Orientations = Dict[str, bool]
@@ -131,46 +136,64 @@ def compute_thermal_penalty(
     blocks: List[Block],
 ) -> float:
     """
-    Compute Thermal Penalty (Pairwise).
+    Compute Thermal Penalty (Pairwise)
+    
     """
     total_thermal_cost = 0.0
     
-    centers = {}
+    # OPTIMIZATION 1: Pre-build list of heat-emitting blocks with their centers
+    # Only blocks with power > 0 can contribute heat to others
+    aggressors = []
     for block in blocks:
-        if block.id in placement:
+        if block.id in placement and block.power > 0:
             x, y = placement[block.id]
-            centers[block.id] = get_center(x, y, block, orientations)
-
+            cx, cy = get_center(x, y, block, orientations)
+            aggressors.append((block, cx, cy))
+    
+    # Early exit if no heat sources
+    if not aggressors:
+        return 0.0
+    
     for victim in blocks:
-        if victim.id not in centers: continue
+        if victim.id not in placement: 
+            continue
         
-        # Base temp
-        current_temp = victim.heat * 10.0
-        vx, vy = centers[victim.id]
+        # Base temp from victim's own heat generation
+        current_temp = victim.power * 10.0
+        
+        x, y = placement[victim.id]
+        vx, vy = get_center(x, y, block, orientations)
 
-        for aggressor in blocks:
-            if victim.id == aggressor.id: continue
-            if aggressor.id not in centers: continue
-            if aggressor.power <= 0: continue
-
-            ax, ay = centers[aggressor.id]
+        for aggressor, ax, ay in aggressors:
+            # Skip self-heating
+            if victim.id == aggressor.id: 
+                continue
+            
+            # OPTIMIZATION 2: Quick Manhattan distance check first
+            # Manhattan distance is always >= Euclidean distance
+            # So if Manhattan > cutoff, we can skip without computing sqrt
+            manhattan_dist = abs(vx - ax) + abs(vy - ay)
+            if manhattan_dist > THERMAL_CUTOFF_DIST * 1.414:  # sqrt(2) factor for safety
+                continue
+            
+            # OPTIMIZATION 3: Compute Euclidean distance squared
             dist_sq = (vx - ax)**2 + (vy - ay)**2
             
-            # TUNED: Using THERMAL_SPREAD_K = 100.0
+            # Skip if beyond thermal influence radius
+            if dist_sq > THERMAL_CUTOFF_DIST**2:
+                continue
+            
+            # Only compute exp() for blocks within thermal range
             transferred_heat = aggressor.power * math.exp(-dist_sq / THERMAL_SPREAD_K)
             current_temp += transferred_heat
 
+        # Apply penalty only if temperature exceeds threshold
         if current_temp > MAX_SAFE_TEMP:
             violation = current_temp - MAX_SAFE_TEMP
-            # TUNED: Using THERMAL_PENALTY_WEIGHT = 5.0
-            total_thermal_cost += (violation ** 2) * THERMAL_PENALTY_WEIGHT
+            total_thermal_cost += (violation ** 2)
 
     return total_thermal_cost
 
-# --- ADD TO CONSTANTS ---
-# Tuned to compete with Wire Attraction. 
-# 10.0 is usually enough to gently push blocks outward without breaking nets.
-CENTER_PENALTY_WEIGHT = 3500.0 
 
 def compute_center_penalty(
     placement: Placement,
@@ -212,6 +235,7 @@ def compute_center_penalty(
 
     return total_penalty * CENTER_PENALTY_WEIGHT
 
+
 def total_cost(
     placement: Placement,
     orientations: Orientations,
@@ -223,8 +247,6 @@ def total_cost(
     ov = compute_overlap_penalty(placement, orientations, blocks)
     bd = compute_boundary_penalty(placement, orientations, blocks, die)
     tm = compute_thermal_penalty(placement, orientations, blocks)
-    
-    # NEW: Add Center Penalty
     cp = compute_center_penalty(placement, orientations, blocks, die)
 
     return wl + ov + bd + tm + cp

@@ -1,0 +1,2 @@
+[console_scripts]
+laiopt = laiopt.frontend.app:main
